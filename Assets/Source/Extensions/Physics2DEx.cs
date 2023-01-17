@@ -25,4 +25,13 @@ namespace Source
             }
         }
     }
+
+    public static class ObjectEx
+    {
+        public static T With<T>(this T imp, Action<T> act) where T : notnull
+        {
+            act?.Invoke(imp);
+            return imp;
+        }
+    }
 }
