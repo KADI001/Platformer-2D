@@ -17,7 +17,7 @@ namespace Source
                 float progress = (float)i / steps;
                 Ray ray = rayRange.GetRay(progress);
                 RaycastHit2D hit = Raycast(ray, distance, mask);
-
+                
                 if (hit)
                 {
                     onHit?.Invoke(hit);

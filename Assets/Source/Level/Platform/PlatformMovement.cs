@@ -1,5 +1,4 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -16,7 +15,7 @@ namespace Source
 
         private Vector2[] _globalWaypoints;
         private List<PassengersMovement> _passengersMovements;
-        private Dictionary<Transform, Controller2D> _controllers;
+        private Dictionary<Transform, IMoveable> _controllers;
 
         private float _timeToMove;
         private int _fromWaypointIndex;
@@ -27,11 +26,13 @@ namespace Source
         private float _elapsedTime;
         private bool _canMove;
 
+        public bool Enable;
+
         protected override void Start()
         {
             base.Start();
 
-            _controllers = new Dictionary<Transform, Controller2D>();
+            _controllers = new Dictionary<Transform, IMoveable>();
             _globalWaypoints = new Vector2[_localWaypoints.Length];
 
             for (int i = 0; i < _globalWaypoints.Length; i++)
@@ -52,15 +53,21 @@ namespace Source
 
         private void FixedUpdate()
         {
-            _speed = _totalWayLength / _time;
-
             CalculateRays();
-            _deltaPosition = CalculatePlatformDeltaPosition();
-            Handle(_deltaPosition);
+            
+            if (Enable)
+            {
+                _speed = _totalWayLength / _time;
 
-            MovePassengers(true);
-            transform.Translate(_deltaPosition);
-            MovePassengers(false);
+                _deltaPosition = CalculatePlatformDeltaPosition();
+                Handle(_deltaPosition);
+
+
+                MovePassengers(true);
+                transform.Translate(_deltaPosition);
+                CalculateRays();
+                MovePassengers(false);
+            }
         }
 
         private Vector2 CalculatePlatformDeltaPosition()
@@ -85,7 +92,6 @@ namespace Source
                 _progress = 0;
                 _fromWaypointIndex++;
 
-
                 if (!_ringWay)
                 {
                     if (_fromWaypointIndex >= _localWaypoints.Length - 1)
@@ -107,18 +113,18 @@ namespace Source
             {
                 if (!_controllers.ContainsKey(passenger.Transform))
                 {
-                    _controllers.Add(passenger.Transform, passenger.Transform.GetComponent<Controller2D>());
+                    _controllers.Add(passenger.Transform, passenger.Transform.GetComponent<IMoveable>());
                 }
 
                 if (passenger.MoveBefore == before)
                 {
-                    Controller2D controller2D = _controllers[passenger.Transform];
+                    IMoveable controller2D = _controllers[passenger.Transform];
                     controller2D.Move(passenger.DeltaPosition);
                 }
             }
         }
 
-        public void Handle(Vector2 deltaPosition)
+        private void Handle(Vector2 deltaPosition)
         {
             HashSet<Transform> passengers = new HashSet<Transform>();
             _passengersMovements = new List<PassengersMovement>();
@@ -129,7 +135,7 @@ namespace Source
             {
                 float rayDistance = Mathf.Abs(deltaPosition.y) + _shell;
                 RayRange rayRange = directionY == -1 ? _bottom : _up;
-                Physics2DEx.RaycastWithAction(rayRange, rayDistance, _passengersMask, _steps, (hit) =>
+                Physics2DEx.RaycastWithAction(rayRange, rayDistance, _passengersMask, _steps, hit =>
                 {
                     if (!passengers.Contains(hit.transform))
                     {
@@ -146,7 +152,7 @@ namespace Source
             {
                 float rayDistance = Mathf.Abs(deltaPosition.x) + _shell;
                 RayRange rayRange = directionX == -1 ? _left : _right;
-                Physics2DEx.RaycastWithAction(rayRange, rayDistance, _passengersMask, _steps, (hit) =>
+                Physics2DEx.RaycastWithAction(rayRange, rayDistance, _passengersMask, _steps, hit =>
                 {
                     if (!passengers.Contains(hit.transform))
                     {
@@ -162,13 +168,12 @@ namespace Source
             if (directionY == -1 || deltaPosition.y == 0 && deltaPosition.x != 0)
             {
                 float rayDistance = 2 * _shell;
-                Physics2DEx.RaycastWithAction(_up, rayDistance, _passengersMask, _steps, (hit) =>
+                Physics2DEx.RaycastWithAction(_up, rayDistance, _passengersMask, _steps, hit =>
                 {
                     if (!passengers.Contains(hit.transform))
                     {
                         passengers.Add(hit.transform);
-                        Vector2 deltaPos = new Vector2(deltaPosition.x, deltaPosition.y);
-                        _passengersMovements.Add(new PassengersMovement(hit.transform, deltaPos, false, true, true,
+                        _passengersMovements.Add(new PassengersMovement(hit.transform, deltaPosition, false, true, true,
                             false));
                     }
                 });

@@ -13,6 +13,7 @@ namespace Source
         public bool DescendingExcessiveSlope;
         public Vector2 OldDeltaPosition;
         public Vector2 Velocity;
+        public bool ClimbingStair;
 
         public void Reset()
         {

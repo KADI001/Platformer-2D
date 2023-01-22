@@ -1,61 +1,32 @@
-using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
-using Unity.VisualScripting;
 using UnityEngine;
-using UnityEngine.Serialization;
 
 namespace Source
 {
-    public class Controller2D : RaycastCollision, IMoveable
+    public class BoxMovement : RaycastCollision, IMoveable
     {
-        [SerializeField] private float _maxWalkeableSurfaceAngel;
-        [SerializeField] private float _maxDescendableSurfaceAngel;
-        [SerializeField] private float _descendingSpeed;
-
+        [SerializeField] private LayerMask _passengersMask;
+        private float _maxWalkeableSurfaceAngel = 60;
         private Vector2 _velocity;
-        private Vector2 _deltaPosition;
-        private Vector2 _forward;
 
         public bool OnGround => Info.Below;
-        public CollisionInfo CollisionInfo => Info;
-        public float Shell => _shell;
-        public bool Above => Info.Above;
-        public bool Right => Info.Right;
-        public bool Left => Info.Left;
-        public bool DescendingExcessiveSlope => Info.DescendingExcessiveSlope;
         public Vector2 Velocity => _velocity;
-        public Vector2 Forward => _forward;
-        
-
-        public bool onGround;
-        
-
-        private void Awake()
-        {
-            _steps = 5;
-            _forward = Vector2.right;
-        }
+        public CollisionInfo CollisionInfo => Info;
 
         private void FixedUpdate()
         {
-            if (Info.Below || Info.DescendingExcessiveSlope)
+            if (Info.Below || Info.DescendingExcessiveSlope) 
                 _velocity.y = _velocity.y < 0 ? 0 : _velocity.y;
 
-            if (Info.Above)
+            if (Info.Above) 
                 _velocity.y = _velocity.y > 0 ? 0 : _velocity.y;
-
-            onGround = OnGround;
-
-            _forward = transform.rotation.eulerAngles.y == 180 ? Vector2.left : Vector2.right;
 
             Move(_velocity * Time.deltaTime);
         }
-
-        public void SetVelocity(Vector2 velocity)
+        
+        public void SetVelocity(Vector2 newVelocity)
         {
-            _velocity = velocity;
+            _velocity = newVelocity;
         }
 
         public void AddVelocity(Vector2 velocity)
@@ -65,18 +36,12 @@ namespace Source
 
         public void Move(Vector2 deltaPosition)
         {
-            print(deltaPosition / Time.deltaTime);
             CalculateRays();
             UpdateCollisions(deltaPosition);
 
             Info.Reset();
             Info.OldDeltaPosition = deltaPosition;
-
-            if (deltaPosition.y < 0)
-            {
-                DescendSlope(ref deltaPosition);
-            }
-
+            
             if (deltaPosition.x != 0)
             {
                 HorizontalCollision(ref deltaPosition);
@@ -87,6 +52,56 @@ namespace Source
                 VerticalCollision(ref deltaPosition);
             }
 
+            HashSet<Transform> passengers = new HashSet<Transform>();
+            float directionX = Mathf.Sign(deltaPosition.x);
+            float directionY = Mathf.Sign(deltaPosition.y);
+            
+            if (deltaPosition.y != 0)
+            {
+                float rayDistance = Mathf.Abs(deltaPosition.y) + _shell;
+                RayRange rayRange = directionY == -1 ? _bottom : _up;
+                Physics2DEx.RaycastWithAction(rayRange, rayDistance, _passengersMask, _steps, (hit) =>
+                {
+                    if (!passengers.Contains(hit.transform))
+                    {
+                        passengers.Add(hit.transform);
+                        Vector2 deltaPos = new Vector2((directionY == 1) ? deltaPosition.x : 0,
+                            deltaPosition.y - (hit.distance - _shell) * directionY);
+                        hit.transform.GetComponent<IMoveable>().Move(deltaPos);
+                    }
+                });
+            }
+            
+            if (deltaPosition.x != 0)
+            {
+                float rayDistance = Mathf.Abs(deltaPosition.x) + _shell;
+                RayRange rayRange = directionX == -1 ? _left : _right;
+                Physics2DEx.RaycastWithAction(rayRange, rayDistance, _passengersMask, _steps, (hit) =>
+                {
+                    if (!passengers.Contains(hit.transform))
+                    {
+                        passengers.Add(hit.transform);
+                        Vector2 deltaPos = new Vector2(deltaPosition.x - (hit.distance - _shell) * directionX,
+                            deltaPosition.y);
+                        hit.transform.GetComponent<IMoveable>().Move(deltaPos);
+                    }
+                });
+            }
+            
+            if (directionY == -1 || deltaPosition.y == 0 && deltaPosition.x != 0)
+            {
+                float rayDistance = 2 * _shell;
+                Physics2DEx.RaycastWithAction(_up, rayDistance, _passengersMask, _steps, (hit) =>
+                {
+                    if (!passengers.Contains(hit.transform))
+                    {
+                        passengers.Add(hit.transform);
+                        Vector2 deltaPos = new Vector2(deltaPosition.x, deltaPosition.y);
+                        hit.transform.GetComponent<IMoveable>().Move(deltaPos);
+                    }
+                });
+            }
+            
             transform.Translate(deltaPosition);
             CalculateRays();
         }
@@ -225,81 +240,7 @@ namespace Source
 
         private void ClimbSlope(ref Vector2 deltaPosition, float slopeAngel)
         {
-            float direction = Mathf.Sign(deltaPosition.x);
-            float moveDistanceX = Mathf.Abs(deltaPosition.x);
-            float climbDeltaPositionY = Mathf.Sin(slopeAngel * Mathf.Deg2Rad) * moveDistanceX;
-            if (climbDeltaPositionY >= deltaPosition.y)
-            {
-                deltaPosition.y = climbDeltaPositionY;
-            }
-
-            deltaPosition.x = Mathf.Cos(slopeAngel * Mathf.Deg2Rad) * moveDistanceX * direction;
-            Info.ClimbingSlope = true;
-            Info.SlopeAngel = slopeAngel;
-        }
-
-        private void DescendSlope(ref Vector2 deltaPosition)
-        {
-            float directionX = Mathf.Sign(deltaPosition.x);
-            Ray ray = (directionX == -1) ? _bottom.GetRay(1) : _bottom.GetRay(0);
-            RaycastHit2D hit = Physics2DEx.Raycast(ray, Mathf.Infinity, _collisionMask);
-
-            if (hit)
-            {
-                float slopeAngle = Vector2.Angle(hit.normal, Vector2.up);
-
-                if (slopeAngle != 0)
-                {
-                    Ray ray2 = _right.GetRay(0);
-                    float rayLength = _shell;
-                    RaycastHit2D rHit2 = Physics2DEx.Raycast(ray2, rayLength, _collisionMask);
-                    Ray ray3 = _left.GetRay(0);
-                    RaycastHit2D lHit2 = Physics2DEx.Raycast(ray3, rayLength, _collisionMask);
-                    RaycastHit2D hit2 = rHit2 ? rHit2 : lHit2;
-
-                    if (hit2)
-                    {
-                        if (slopeAngle <= _maxDescendableSurfaceAngel &&
-                            hit2.transform.Equals(hit.transform))
-                        {
-                            if (Mathf.Sign(hit.normal.x) == directionX)
-                            {
-                                if (hit.distance - _shell <=
-                                    Mathf.Tan(slopeAngle * Mathf.Deg2Rad) * Mathf.Abs(deltaPosition.x))
-                                {
-                                    float moveDistance = Mathf.Abs(deltaPosition.x);
-                                    float descendVelocity = Mathf.Sin(slopeAngle * Mathf.Deg2Rad) * moveDistance;
-                                    deltaPosition.x = Mathf.Cos(slopeAngle * Mathf.Deg2Rad) * moveDistance *
-                                                      Mathf.Sign(deltaPosition.x);
-                                    deltaPosition.y -= descendVelocity;
-
-                                    Info.SlopeAngel = slopeAngle;
-                                    Info.DescendingSlope = true;
-                                    Info.Below = true;
-                                }
-                            }
-                        }
-                        else
-                        {
-                            float slopeAngle2 = Vector2.Angle(hit2.normal, Vector2.up);
-
-                            if (slopeAngle2 > _maxDescendableSurfaceAngel)
-                            {
-                                if (deltaPosition.x == 0 || (Mathf.Sign(hit2.normal.x) != Mathf.Sign(deltaPosition.x)))
-                                {
-                                    float moveDistance = _descendingSpeed * Time.deltaTime;
-                                    float descendVelocity = Mathf.Sin(slopeAngle2 * Mathf.Deg2Rad) * moveDistance;
-                                    deltaPosition.x = Mathf.Cos(slopeAngle2 * Mathf.Deg2Rad) * moveDistance *
-                                                      Mathf.Sign(hit.normal.x);
-                                    deltaPosition.y -= descendVelocity;
-
-                                    Info.DescendingExcessiveSlope = true;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            throw new System.NotImplementedException();
         }
     }
 }

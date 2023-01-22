@@ -5,22 +5,24 @@ using UnityEngine;
 
 namespace Source
 {
-    [RequireComponent(typeof(Controller2D))]
+    [RequireComponent(typeof(IMoveable))]
     public class Jump : MonoBehaviour
     {
         [SerializeField] private float _height;
         [SerializeField] private float _timeToJumpApex;
 
         private float _speed;
-        private Controller2D _controller;
+        private bool _isClimbingStair;
+        private IMoveable _controller;
         private Gravity _gravity;
         private UpStair _upStair;
 
-        private bool _hasUpStairComponent;
+        public bool onGround;
+        
 
         private void Awake()
         {
-            _controller = GetComponent<Controller2D>();
+            _controller = GetComponent<IMoveable>();
             _gravity = GetComponent<Gravity>();
             _upStair = GetComponent<UpStair>();
         }
@@ -30,22 +32,20 @@ namespace Source
             _gravity.SetAcceleration(2 * _height / Mathf.Pow(_timeToJumpApex, 2));
             _speed = Mathf.Abs(_gravity.Acceleration) * _timeToJumpApex +
                      Mathf.Abs(_gravity.Acceleration * Time.deltaTime);
-
-            _hasUpStairComponent = _upStair != null;
         }
 
         private void Update()
         {
-            if (_controller.Velocity.y < 0)
-            {
-                _upStair.TurnOn();
-            }
+            if (_controller.Velocity.y < 0) 
+                _upStair?.TurnOn();
 
-            if (Input.GetKeyDown(KeyCode.Space) && _controller.OnGround)
+            if (Input.GetKeyDown(KeyCode.W) && _controller.OnGround)
             {
                 _controller.SetVelocity(new Vector2(_controller.Velocity.x, _speed));
-                _upStair.TurnOff();
+                _upStair?.TurnOff();
             }
+
+            onGround = _controller.OnGround;
         }
     }
 }

@@ -3,16 +3,17 @@ using UnityEngine;
 
 namespace Source
 {
+    [RequireComponent(typeof(IMoveable))]
     public class Gravity : MonoBehaviour
     {
         [SerializeField] private float _acceleration;
-        private Controller2D _controller;
+        private IMoveable _controller;
 
         public float Acceleration => _acceleration;
 
         private void Awake()
         {
-            _controller = GetComponent<Controller2D>();
+            _controller = GetComponent<IMoveable>();
         }
 
         private void FixedUpdate()

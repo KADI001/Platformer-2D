@@ -22,7 +22,7 @@ namespace Source
 
         private void Update()
         {
-            print(Value);
+            print("Health: " + Value);
         }
 
         public void TakeDamage(int damage)
