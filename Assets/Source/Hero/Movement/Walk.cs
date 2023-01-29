@@ -6,7 +6,7 @@ using UnityEngine;
 namespace Source
 {
     [RequireComponent(typeof(IMoveable))]
-    public class HorizontalMove : MonoBehaviour, IComponent
+    public class Walk : MonoBehaviour, IComponent
     {
         [SerializeField] private float _speed;
         [SerializeField] private float _bounceOffStairForce;

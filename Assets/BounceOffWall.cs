@@ -12,24 +12,24 @@ public class BounceOffWall : MonoBehaviour
     
     private IMoveable _controller;
     private UpStair _upStair;
-    private HorizontalMove _horizontalMove;
+    private Walk _walk;
 
     private void Awake()
     {
         _controller = GetComponent<IMoveable>();
         _upStair = GetComponent<UpStair>();
-        _horizontalMove = GetComponent<HorizontalMove>();
+        _walk = GetComponent<Walk>();
     }
 
     private void Update()
     {
-        _horizontalMove?.SwitchOn();
+        _walk?.SwitchOn();
 
         if (_upStair.isClimbing && Input.GetKeyDown(KeyCode.Space))
         {
             print("Work!");
             _controller.SetVelocity(Vector2.left * _force);
-            _horizontalMove?.SwitchOff();
+            _walk?.SwitchOff();
         }
     }
 }

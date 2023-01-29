@@ -8,7 +8,7 @@ namespace Source
         [SerializeField] private int _value;
 
         private int Min = 0;
-        private int Max = 5;
+        private int Max = 100;
 
         public Action<Transform> Die;
 

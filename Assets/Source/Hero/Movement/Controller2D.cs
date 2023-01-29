@@ -13,10 +13,12 @@ namespace Source
         [SerializeField] private float _maxWalkeableSurfaceAngel;
         [SerializeField] private float _maxDescendableSurfaceAngel;
         [SerializeField] private float _descendingSpeed;
+        [SerializeField] private bool _canMoveBoxes;
 
         private Vector2 _velocity;
         private Vector2 _deltaPosition;
         private Vector2 _forward;
+        private Dictionary<Box, IMoveable> _movements;
 
         public bool OnGround => Info.Below;
         public CollisionInfo CollisionInfo => Info;
@@ -28,14 +30,11 @@ namespace Source
         public Vector2 Velocity => _velocity;
         public Vector2 Forward => _forward;
         
-
-        public bool onGround;
-        
-
         private void Awake()
         {
             _steps = 5;
             _forward = Vector2.right;
+            _movements = new Dictionary<Box, IMoveable>();
         }
 
         private void FixedUpdate()
@@ -45,8 +44,6 @@ namespace Source
 
             if (Info.Above)
                 _velocity.y = _velocity.y > 0 ? 0 : _velocity.y;
-
-            onGround = OnGround;
 
             _forward = transform.rotation.eulerAngles.y == 180 ? Vector2.left : Vector2.right;
 
@@ -65,12 +62,16 @@ namespace Source
 
         public void Move(Vector2 deltaPosition)
         {
-            print(deltaPosition / Time.deltaTime);
             CalculateRays();
             UpdateCollisions(deltaPosition);
 
             Info.Reset();
             Info.OldDeltaPosition = deltaPosition;
+            
+            if (_canMoveBoxes)
+            {
+                MoveBox(deltaPosition);
+            }
 
             if (deltaPosition.y < 0)
             {
@@ -89,6 +90,41 @@ namespace Source
 
             transform.Translate(deltaPosition);
             CalculateRays();
+        }
+
+        private void MoveBox(Vector2 deltaPosition)
+        {
+            HashSet<Transform> passengers = new HashSet<Transform>();
+            float directionX = Mathf.Sign(deltaPosition.x);
+            float rayDistance = Mathf.Abs(deltaPosition.x) + Shell;
+
+            if (deltaPosition.x != 0)
+            {
+                for (int i = 0; i <= Steps; i++)
+                {
+                    Ray ray = directionX == -1 ? LeftRayRange.GetRay((float)i / Steps) : RightRayRange.GetRay((float)i / Steps);
+                    RaycastHit2D hit = Physics2DEx.Raycast(ray, rayDistance, _collisionMask);
+
+                    if (hit)
+                    {
+                        if (hit.transform.TryGetComponent(out Box box))
+                        {
+                            if(!_movements.ContainsKey(box))
+                            {
+                                _movements.Add(box, box.GetComponent<IMoveable>());
+                            }
+                            
+                            if (!passengers.Contains(box.transform))
+                            {
+                                passengers.Add(box.transform);
+                                Vector2 deltaPos = new Vector2(deltaPosition.x - (hit.distance - _shell) * directionX,
+                                    0);
+                                _movements[box].Move(deltaPos);
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         private void VerticalCollision(ref Vector2 deltaPosition)

@@ -5,13 +5,18 @@ namespace Source
 {
     public class BoxMovement : RaycastCollision, IMoveable
     {
+        private const float _maxWalkeableSurfaceAngel = 60;
+        
         [SerializeField] private LayerMask _passengersMask;
-        private float _maxWalkeableSurfaceAngel = 60;
+        
         private Vector2 _velocity;
+        private List<PassengersMovement> _passengersMovements = new List<PassengersMovement>();
+        private Dictionary<Transform, IMoveable> _controllers = new Dictionary<Transform, IMoveable>();
 
         public bool OnGround => Info.Below;
         public Vector2 Velocity => _velocity;
         public CollisionInfo CollisionInfo => Info;
+
 
         private void FixedUpdate()
         {
@@ -23,7 +28,7 @@ namespace Source
 
             Move(_velocity * Time.deltaTime);
         }
-        
+
         public void SetVelocity(Vector2 newVelocity)
         {
             _velocity = newVelocity;
@@ -52,58 +57,85 @@ namespace Source
                 VerticalCollision(ref deltaPosition);
             }
 
+            //Handle(deltaPosition);
+
+            //MovePassengers(true);
+            transform.Translate(deltaPosition);
+            CalculateRays();
+            //MovePassengers(false);
+        }
+
+        private void MovePassengers(bool before)
+        {
+            foreach (var passenger in _passengersMovements)
+            {
+                if (!_controllers.ContainsKey(passenger.Transform))
+                {
+                    _controllers.Add(passenger.Transform, passenger.Transform.GetComponent<IMoveable>());
+                }
+
+                if (passenger.MoveBefore == before)
+                {
+                    IMoveable controller2D = _controllers[passenger.Transform];
+                    controller2D.Move(passenger.DeltaPosition);
+                }
+            }
+        }
+        
+         private void Handle(Vector2 deltaPosition)
+        {
             HashSet<Transform> passengers = new HashSet<Transform>();
+            _passengersMovements = new List<PassengersMovement>();
             float directionX = Mathf.Sign(deltaPosition.x);
             float directionY = Mathf.Sign(deltaPosition.y);
-            
+
             if (deltaPosition.y != 0)
             {
                 float rayDistance = Mathf.Abs(deltaPosition.y) + _shell;
                 RayRange rayRange = directionY == -1 ? _bottom : _up;
-                Physics2DEx.RaycastWithAction(rayRange, rayDistance, _passengersMask, _steps, (hit) =>
+                Physics2DEx.RaycastWithAction(rayRange, rayDistance, _passengersMask, _steps, hit =>
                 {
                     if (!passengers.Contains(hit.transform))
                     {
                         passengers.Add(hit.transform);
                         Vector2 deltaPos = new Vector2((directionY == 1) ? deltaPosition.x : 0,
                             deltaPosition.y - (hit.distance - _shell) * directionY);
-                        hit.transform.GetComponent<IMoveable>().Move(deltaPos);
+                        _passengersMovements.Add(new PassengersMovement(hit.transform, deltaPos, true, directionY == 1,
+                            true, false));
                     }
                 });
             }
-            
+
             if (deltaPosition.x != 0)
             {
                 float rayDistance = Mathf.Abs(deltaPosition.x) + _shell;
                 RayRange rayRange = directionX == -1 ? _left : _right;
-                Physics2DEx.RaycastWithAction(rayRange, rayDistance, _passengersMask, _steps, (hit) =>
+                Physics2DEx.RaycastWithAction(rayRange, rayDistance, _passengersMask, _steps, hit =>
                 {
                     if (!passengers.Contains(hit.transform))
                     {
                         passengers.Add(hit.transform);
                         Vector2 deltaPos = new Vector2(deltaPosition.x - (hit.distance - _shell) * directionX,
                             deltaPosition.y);
-                        hit.transform.GetComponent<IMoveable>().Move(deltaPos);
+                        _passengersMovements.Add(new PassengersMovement(hit.transform, deltaPos, true, false, false,
+                            true));
                     }
                 });
             }
-            
+
             if (directionY == -1 || deltaPosition.y == 0 && deltaPosition.x != 0)
             {
                 float rayDistance = 2 * _shell;
-                Physics2DEx.RaycastWithAction(_up, rayDistance, _passengersMask, _steps, (hit) =>
+                Physics2DEx.RaycastWithAction(_up, rayDistance, _passengersMask, _steps, hit =>
                 {
                     if (!passengers.Contains(hit.transform))
                     {
                         passengers.Add(hit.transform);
-                        Vector2 deltaPos = new Vector2(deltaPosition.x, deltaPosition.y);
-                        hit.transform.GetComponent<IMoveable>().Move(deltaPos);
+                        _passengersMovements.Add(new PassengersMovement(hit.transform, deltaPosition, false, true, true,
+                            false));
                     }
                 });
             }
-            
-            transform.Translate(deltaPosition);
-            CalculateRays();
         }
 
         private void VerticalCollision(ref Vector2 deltaPosition)

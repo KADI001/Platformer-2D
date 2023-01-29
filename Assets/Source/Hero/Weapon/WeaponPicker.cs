@@ -30,7 +30,7 @@ public class WeaponPicker : MonoBehaviour
             _pickedWeapon.transform.position = _weaponSlot.transform.position;
             _pickedWeapon.transform.rotation = _center.transform.rotation;
             
-            if (Input.GetMouseButtonDown(0))
+            if (Input.GetMouseButton(0))
             {
                 _pickedWeapon.Shoot(Direction);
             }
@@ -48,8 +48,8 @@ public class WeaponPicker : MonoBehaviour
     private void Flip()
     {
         Vector2 newRotation = _center.rotation.eulerAngles;
-        newRotation.y = HorizontalMove.GetMoveDirection() == 0 ? newRotation.y :
-            HorizontalMove.GetMoveDirection() == 1 ? 0 : 180;
+        newRotation.y = Walk.GetMoveDirection() == 0 ? newRotation.y :
+            Walk.GetMoveDirection() == 1 ? 0 : 180;
         _center.transform.rotation = Quaternion.Euler(newRotation);
     }
 

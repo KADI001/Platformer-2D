@@ -15,12 +15,14 @@ namespace Source
 
         private Animator _animator;
         private Controller2D _controller;
+        private UpStair _upStair;
         private SpriteRenderer _spriteRenderer;
 
         private void Awake()
         {
             _animator = GetComponent<Animator>();
             _controller = GetComponent<Controller2D>();
+            _upStair = GetComponent<UpStair>();
             _spriteRenderer = GetComponent<SpriteRenderer>();
         }
 
@@ -36,7 +38,7 @@ namespace Source
                     _animator.SetInteger(State, (int)PlayerState.Idle);
             }
 
-            if (!_controller.OnGround)
+            if (!_controller.OnGround && !_upStair.isClimbing)
                 _animator.SetInteger(State, (int)PlayerState.Jump);
 
             Flip();

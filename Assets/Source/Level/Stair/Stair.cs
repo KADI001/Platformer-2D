@@ -12,7 +12,7 @@ namespace Source
         [SerializeField] private int _upStairDirection;
         [SerializeField] private LayerMask _passengerMask;
 
-        private Dictionary<HorizontalMove, Controller2D> _controllers;
+        private Dictionary<Walk, Controller2D> _controllers;
         public float UpStaringSpeed => _upStairSpeed;
         public float UpStarDirection => _upStairDirection;
 
@@ -31,7 +31,7 @@ namespace Source
         {
             base.Start();
 
-            _controllers = new Dictionary<HorizontalMove, Controller2D>();
+            _controllers = new Dictionary<Walk, Controller2D>();
         }
     }
 }

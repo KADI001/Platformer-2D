@@ -11,6 +11,8 @@ namespace Source
         int Steps { get; }
         RayRange LeftRayRange { get; }
         RayRange RightRayRange { get; }
+        RayRange BottomRayRange { get; }
+        RayRange UpRayRange { get; }
         LayerMask Mask { get; }
         void SetVelocity(Vector2 newVelocity);
         void AddVelocity(Vector2 velocity);
